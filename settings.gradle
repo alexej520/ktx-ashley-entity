@@ -1,0 +1,4 @@
+rootProject.name = 'ktx-ashley-entity'
+include 'ashleyannotation'
+include 'ashleyprocessor'
+

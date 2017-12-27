@@ -1,0 +1,40 @@
+allprojects {
+    version '1.0'
+}
+
+subprojects {
+    apply plugin: 'kotlin'
+
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    }
+
+    jar {
+        from sourceSets.main.output
+    }
+
+    task sourcesJar(type: Jar) {
+        classifier = 'sources'
+        from sourceSets.main.allSource
+    }
+
+    artifacts {
+        archives sourcesJar, jar
+    }
+}
+
+buildscript {
+    ext.kotlin_version = '1.2.10'
+    ext.ashleyVersion = '1.7.3'
+
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
