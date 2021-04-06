@@ -5,6 +5,7 @@ import com.badlogic.ashley.core.ComponentMapper
 import com.badlogic.ashley.core.Entity
 import com.google.auto.service.AutoService
 import com.squareup.kotlinpoet.*
+import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import ktx.ashley.annotation.EntityExtension
 import java.io.File
 import javax.annotation.Generated
@@ -32,14 +33,19 @@ class KtxAshleyProcessor : AbstractProcessor() {
         println("process")
         val map = mutableMapOf<PackageElement, MutableList<ExtensionSpec>>()
         roundEnv.getElementsAnnotatedWith(EntityExtension::class.java)
-                .forEach {
-                    val componentType = processingEnv.elementUtils.getTypeElement(Component::class.qualifiedName).asType()
-                    if (!processingEnv.typeUtils.isAssignable(it.asType(), componentType)) {
-                        throw Exception("${it.simpleName} must implement Component")
-                    }
-                    val annotation = it.getAnnotation(EntityExtension::class.java)!!
-                    map.getOrPut(processingEnv.elementUtils.getPackageOf(it)) { mutableListOf() } += ExtensionSpec(annotation, it)
+            .forEach {
+                val componentType = processingEnv.elementUtils
+                    .getTypeElement(Component::class.qualifiedName)
+                    .asType()
+                if (!processingEnv.typeUtils.isAssignable(it.asType(), componentType)) {
+                    throw Exception("${it.simpleName} must implement Component")
                 }
+                val annotation = it.getAnnotation(EntityExtension::class.java)!!
+                map.getOrPut(processingEnv.elementUtils.getPackageOf(it)) { mutableListOf() } += ExtensionSpec(
+                    annotation,
+                    it
+                )
+            }
         return generateExtension(map)
     }
 
@@ -58,37 +64,47 @@ class KtxAshleyProcessor : AbstractProcessor() {
                     val propName = if (customName.isNotEmpty()) {
                         customName
                     } else {
-                        with(componentClassName.replace(reg, "")){
+                        with(componentClassName.replace(reg, "")) {
                             substring(0, 1).toLowerCase() + substring(1)
                         }
                     }
 
                     val propTypeName = spec.component.asType().asTypeName()
-                    val mapperTypeName = ParameterizedTypeName.get(ComponentMapper::class.asTypeName(), propTypeName)
+                    val mapperTypeName =
+                        ComponentMapper::class.asTypeName().parameterizedBy(propTypeName)
 
-                    mappers.addProperty(PropertySpec.builder(propName, mapperTypeName)
+                    mappers.addProperty(
+                        PropertySpec.builder(propName, mapperTypeName)
                             .initializer("ComponentMapper.getFor($componentClassName::class.java)")
                             .mutable(false)
-                            .build())
+                            .build()
+                    )
 
-                    extensions += PropertySpec.varBuilder(propName, propTypeName.asNullable())
-                            .receiver(Entity::class)
-                            .getter(FunSpec.getterBuilder()
-                                    .addModifiers(KModifier.INLINE)
-                                    .addStatement("return Mapper.$propName.get(this)")
-                                    .build())
-                            .setter(FunSpec.setterBuilder()
-                                    .addModifiers(KModifier.INLINE)
-                                    .addParameter("value", propTypeName)
-                                    .addCode("""
+                    extensions += PropertySpec.builder(propName, propTypeName.copy(nullable = true))
+                        .mutable(true)
+                        .receiver(Entity::class)
+                        .getter(
+                            FunSpec.getterBuilder()
+                                .addModifiers(KModifier.INLINE)
+                                .addStatement("return Mapper.$propName.get(this)")
+                                .build()
+                        )
+                        .setter(
+                            FunSpec.setterBuilder()
+                                .addModifiers(KModifier.INLINE)
+                                .addParameter("value", propTypeName)
+                                .addCode(
+                                    """
                                         if (value == null){
                                         remove($componentClassName::class.java)
                                         } else {
                                         add(value)
                                         }
-                                    """.trimIndent())
-                                    .build())
-                            .build()
+                                    """.trimIndent()
+                                )
+                                .build()
+                        )
+                        .build()
                 }
                 addType(mappers.build())
                 extensions.forEach {
@@ -102,7 +118,7 @@ class KtxAshleyProcessor : AbstractProcessor() {
     @Generated()
     companion object {
         val GENERATED = AnnotationSpec.builder(Generated::class)
-                .addMember("value = %S", "ktx.ashley.processor.KtxAshleyProcessor")
-                .build()
+            .addMember("value = %S", "[ktx.ashley.processor.KtxAshleyProcessor]")
+            .build()
     }
 }
