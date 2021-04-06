@@ -118,7 +118,7 @@ class KtxAshleyProcessor : AbstractProcessor() {
     @Generated()
     companion object {
         val GENERATED = AnnotationSpec.builder(Generated::class)
-            .addMember("value = %S", "[ktx.ashley.processor.KtxAshleyProcessor]")
+            .addMember("value = [%S]", "ktx.ashley.processor.KtxAshleyProcessor")
             .build()
     }
 }
